@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="pl" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdForge OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Chosen Palette: Sophisticated Neutral -->
+    <!-- Application Structure Plan: A comprehensive single-page dashboard layout. A fixed sidebar provides primary navigation between core modules: Dashboard, Strategia, System (The Playbook), Operacje, a now fully functional 'Akademia' for training, and Baza Wiedzy. This structure separates high-level strategy, detailed processes, day-to-day operations, and structured learning paths, creating a clear information hierarchy. The goal is a central hub for all company activities, from daily tasks to long-term skill development. -->
+    <!-- Visualization & Content Choices: Data is visualized through interactive charts (Chart.js) on the dashboard. Processes are shown as interactive diagrams (HTML/CSS) linked to tables. The 'Akademia' section now features detailed, clickable learning paths presented in modals. The 'Operacje' and 'System' sections include actionable checklists and detailed deliverable templates. This multi-faceted approach addresses the user's need for a tool that is both a reference and a training platform. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        :root {
+            --bg-main: #f4f4f5; /* zinc-100 */
+            --bg-sidebar: #e4e4e7; /* zinc-200 */
+            --bg-card: #ffffff;
+            --text-primary: #18181b; /* zinc-900 */
+            --text-secondary: #52525b; /* zinc-600 */
+            --border-color: #d4d4d8; /* zinc-300 */
+            --accent-primary: #a16207; /* amber-700 */
+            --accent-secondary: #fefce8; /* yellow-50 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+        }
+        .sidebar {
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+        }
+        .nav-link {
+            color: var(--text-secondary);
+            transition: all 0.2s ease-in-out;
+        }
+        .nav-link:hover {
+            background-color: #d4d4d8;
+            color: var(--text-primary);
+        }
+        .nav-link.active {
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+            font-weight: 600;
+            box-shadow: -2px 0 0 0 var(--accent-primary) inset;
+        }
+        .content-section { display: none; }
+        .content-section.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px 0 rgba(0,0,0,0.03), 0 1px 2px -1px rgba(0,0,0,0.03);
+            transition: box-shadow 0.2s;
+        }
+        .card:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05); }
+        .kanban-column { min-height: 400px; }
+        .kanban-card { cursor: pointer; }
+        .diagram-node, .table-row { transition: background-color 0.2s ease-in-out; }
+        .diagram-node.highlighted, .table-row.highlighted { background-color: var(--accent-secondary); border-color: var(--accent-primary); }
+        .diagram-connector { flex-grow: 1; height: 2px; background-color: var(--border-color); position: relative; }
+        .diagram-connector::after { content: ''; position: absolute; right: -1px; top: -4px; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 7px solid var(--border-color); }
+        .accordion-button.open .accordion-arrow { transform: rotate(90deg); }
+        .accordion-arrow { transition: transform 0.2s; }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-in-out; }
+        .framework-content ul { list-style-position: inside; }
+        .framework-content ul li { margin-left: 1rem; }
+        .framework-content ul ul li { margin-left: 2rem; }
+        .framework-content h4 { font-weight: 700; margin-top: 1.25rem; margin-bottom: 0.5rem; color: var(--text-primary); }
+        .framework-content h5 { font-weight: 600; margin-top: 1rem; color: var(--text-secondary); }
+        .framework-content p { margin-bottom: 0.75rem; }
+        .framework-content pre { background-color: #f3f4f6; padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap; word-wrap: break-word; font-size: 0.875rem; }
+        .progress-bar-bg { background-color: #e4e4e7; }
+        .progress-bar { background-color: var(--accent-primary); transition: width 0.5s ease-in-out; }
+        .checklist-item input:checked + span { text-decoration: line-through; color: #71717a; }
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="sidebar w-64 flex-shrink-0 hidden md:flex flex-col justify-between p-4 sticky top-0">
+            <div>
+                <div class="px-4 mb-8">
+                    <h1 class="text-2xl font-extrabold text-gray-800">AdForge OS</h1>
+                    <p class="text-xs text-gray-500">Zintegrowany System Operacyjny</p>
+                </div>
+                <nav id="main-nav" class="space-y-2">
+                    <a href="#dashboard" class="nav-link active group flex items-center px-4 py-2.5 rounded-lg">
+                        <span class="w-6 h-6 mr-3">📊</span> Strona Główna
+                    </a>
+                    <a href="#strategia" class="nav-link group flex items-center px-4 py-2.5 rounded-lg">
+                        <span class="w-6 h-6 mr-3">🎯</span> Strategia
+                    </a>
+                    <a href="#system" class="nav-link group flex items-center px-4 py-2.5 rounded-lg">
+                        <span class="w-6 h-6 mr-3">⚙️</span> System (Playbook)
+                    </a>
+                    <a href="#operacje" class="nav-link group flex items-center px-4 py-2.5 rounded-lg">
+                        <span class="w-6 h-6 mr-3">🚀</span> Operacje i SOPs
+                    </a>
+                    <a href="#akademia" class="nav-link group flex items-center px-4 py-2.5 rounded-lg">
+                        <span class="w-6 h-6 mr-3">🎓</span> Akademia AdForge
+                    </a>
+                    <a href="#wiedza" class="nav-link group flex items-center px-4 py-2.5 rounded-lg">
+                        <span class="w-6 h-6 mr-3">📚</span> Baza Wiedzy
+                    </a>
+                </nav>
+            </div>
+            <div class="px-4 text-center">
+                <p class="text-xs text-gray-500">Wersja: Lipiec 2025</p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10">
+            <div id="content-container">
+                
+                <!-- Dashboard Section -->
+                <section id="dashboard" class="content-section active">
+                    <h1 class="text-4xl font-bold mb-2">Dashboard</h1>
+                    <p class="text-lg text-gray-500 mb-8">Przegląd kluczowych wskaźników i statusu operacyjnego.</p>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                        <div class="card p-6">
+                            <h3 class="font-semibold text-gray-800">MRR (Monthly Recurring Revenue)</h3>
+                            <p class="text-3xl font-bold">150,000 PLN</p>
+                            <p class="text-sm text-green-600">+12% vs poprzedni miesiąc</p>
+                            <div class="chart-container mt-4 h-48 max-h-[200px]"><canvas id="mrrChart"></canvas></div>
+                        </div>
+                        <div class="card p-6">
+                            <h3 class="font-semibold text-gray-800">Retencja Klientów (Roczna)</h3>
+                            <p class="text-3xl font-bold">92%</p>
+                            <p class="text-sm text-gray-500">Cel: >90%</p>
+                            <div class="chart-container mt-4 h-48 max-h-[200px]"><canvas id="retentionChart"></canvas></div>
+                        </div>
+                        <div class="card p-6">
+                            <h3 class="font-semibold text-gray-800">Lejek Sprzedażowy (Q2)</h3>
+                            <p class="text-3xl font-bold">5 Klientów</p>
+                            <p class="text-sm text-gray-500">Konwersja Audyt -> Klient: 45%</p>
+                            <div class="chart-container mt-4 h-48 max-h-[200px]"><canvas id="funnelChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <h2 class="text-2xl font-bold mb-4">Tablica Statusu Klientów</h2>
+                    <div id="kanban-board" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        <!-- Kanban columns will be injected by JS -->
+                    </div>
+                </section>
+
+                <!-- Strategia Section -->
+                <section id="strategia" class="content-section">
+                    <h1 class="text-4xl font-bold mb-2">Strategia AdForge</h1>
+                    <p class="text-lg text-gray-500 mb-8">Nasz system operacyjny: Kim jesteśmy, jak działamy i dokąd zmierzamy.</p>
+
+                    <div class="space-y-10">
+                        <!-- Sekcja 1: Esencja AdForge -->
+                        <div class="card p-8">
+                            <h2 class="text-2xl font-bold mb-4 border-b pb-2">SEKCJA 1: ESENCJA ADFORGE</h2>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 class="font-semibold text-lg mb-2">Kim Jesteśmy</h3>
+                                    <p class="text-gray-600">Strategicznym partnerem transformacji rentowności dla ambitnych firm e-commerce. NIE JESTEŚMY kolejną agencją PPC/CRO. Jesteśmy strategicznymi konsultantami i partnerami biznesowymi.</p>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-lg mb-2">Pozycjonowanie</h3>
+                                    <p class="text-gray-600">Agencja premium/butikowa, selektywny "Brutalnie Szczery Doradca Biznesowy" dla e-commerce. Tworzymy własną kategorię.</p>
+                                </div>
+                                <div class="lg:col-span-2">
+                                     <h3 class="font-semibold text-lg mb-2">Nasza "Brutalna Prawda"</h3>
+                                     <p class="text-gray-600 italic bg-amber-50 p-4 rounded-lg border-l-4 border-amber-400">"Twój problem e-commerce nie leży w reklamach – leży w wadliwych fundamentach Twojego modelu biznesowego. My to diagnozujemy i pomagamy naprawić. Mówimy prawdę o Twoim biznesie, której nikt inny nie ma odwagi wypowiedzieć, bo tylko ona prowadzi do trwałej rentowności."</p>
+                                </div>
+                                <div class="lg:col-span-2">
+                                    <h3 class="font-semibold text-lg mb-2">Kluczowe Wyróżniki ("Trzy Filary Prawdziwej Przewagi")</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div class="border p-4 rounded-lg">
+                                            <h4 class="font-bold">Dogłębna Analiza Fundamentów</h4>
+                                            <p class="text-sm text-gray-600">Analizujemy rentowność każdego produktu. Challengujemy fundamentalne założenia Twojego biznesu, szukając ukrytego potencjału i miejsc, gdzie ucieka marża.</p>
+                                        </div>
+                                        <div class="border p-4 rounded-lg">
+                                            <h4 class="font-bold">Strategiczne Myślenie Inwestycyjne</h4>
+                                            <p class="text-sm text-gray-600">Traktujemy marketing jak inwestycję w ZYSK, nie koszt. Priorytetyzujemy działania o największym potencjalnym wpływie na marżę.</p>
+                                        </div>
+                                        <div class="border p-4 rounded-lg">
+                                            <h4 class="font-bold">Selektywne Partnerstwo i Szczerość</h4>
+                                            <p class="text-sm text-gray-600">Pracujemy z max. 5 nowymi klientami na kwartał. Komunikujemy się bezpośrednio i bez ogródek.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sekcja 3: Idealny Klient (ICP) -->
+                        <div class="card p-8">
+                            <h2 class="text-2xl font-bold mb-4 border-b pb-2">SEKCJA 2: IDEALNY KLIENT (ICP)</h2>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 class="font-semibold text-lg mb-2">Profil Firmy</h3>
+                                    <ul class="list-disc list-inside text-gray-600 space-y-1">
+                                        <li><strong>Typ:</strong> E-commerce (preferowane marki własne/DTC).</li>
+                                        <li><strong>Obrót Roczny:</strong> 1-20M PLN (preferowany 3.5M-10M PLN).</li>
+                                        <li><strong>Status:</strong> Osiągnęli plateau wzrostu lub mają problemy z rentownością.</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-lg mb-2">Profil Decydenta</h3>
+                                    <ul class="list-disc list-inside text-gray-600 space-y-1">
+                                        <li><strong>Osoba:</strong> Właściciel/CEO.</li>
+                                        <li><strong>Mentalność:</strong> Gotowy na niewygodną prawdę, otwarty na zmiany, myśli jak inwestor.</li>
+                                        <li><strong>Potrzeba:</strong> Szuka partnera do transformacji, a nie wykonawcy reklam.</li>
+                                    </ul>
+                                </div>
+                                <div class="lg:col-span-2 bg-red-50 p-4 rounded-lg border-l-4 border-red-400">
+                                    <h3 class="font-semibold text-lg mb-2 text-red-800">Kogo NIE Obsługujemy (Czerwone Flagi)</h3>
+                                    <ul class="list-disc list-inside text-red-700 space-y-1">
+                                        <li>Firmy szukające tylko "lepszych/tańszych reklam" bez chęci zmian w biznesie.</li>
+                                        <li>Niegotowi na transparentność i kwestionowanie założeń.</li>
+                                        <li>Skupieni tylko na krótkoterminowych metrykach vanity (np. niski CPC, wysoki ROAS bez kontekstu marży).</li>
+                                        <li>Startupy bez walidacji rynkowej i z fundamentalnie nieopłacalnym modelem.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sekcja 4: Cele Strategiczne -->
+                        <div class="card p-8">
+                             <h2 class="text-2xl font-bold mb-4 border-b pb-2">SEKCJA 3: CELE STRATEGICZNE I KPIs</h2>
+                             <div class="space-y-4">
+                                <div>
+                                    <h3 class="font-semibold text-lg mb-1">BHAG (Big Hairy Audacious Goal)</h3>
+                                    <p class="text-gray-600">Stać się najskuteczniejszą agencją transformacji e-commerce w Polsce do 2026 roku.</p>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-lg mb-1">Cele na Koniec 2025</h3>
+                                    <p class="text-gray-600"><strong>Finansowe:</strong> MRR 150k PLN, Marża operacyjna >25%. <br><strong>Operacyjne:</strong> Max. 25 aktywnych klientów, wdrożony system operacyjny, zbudowany elitarny core team (2-3 osoby).</p>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-lg mb-1">Kluczowe Metryki Sukcesu (KPIs)</h3>
+                                    <p class="text-gray-600"><strong>Dla Klientów:</strong> Wzrost MARŻY BRUTTO, Poprawa LTV:CAC, Wzrost ZYSKU Operacyjnego. <br><strong>Dla AdForge:</strong> MRR, Marża Operacyjna, Konwersja (Audyt -> Retainer) >30%, Retencja >85%.</p>
+                                </div>
+                             </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- System Section -->
+                <section id="system" class="content-section">
+                    <!-- Content will be injected by JS -->
+                </section>
+
+                <!-- Operacje Section -->
+                <section id="operacje" class="content-section">
+                    <h1 class="text-4xl font-bold mb-2">Operacje i SOPs</h1>
+                    <p class="text-lg text-gray-500 mb-8">Standardowe Procedury Operacyjne (SOPs) i checklisty do codziennej pracy.</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="card p-6">
+                            <h3 class="text-lg font-bold mb-3">SOP: Kwalifikacja Leada</h3>
+                            <p class="text-xs text-gray-500 mb-4">Cel: Odrzucić 60% leadów, które nie pasują do ICP.</p>
+                            <ul class="text-sm space-y-3">
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Wypełnienie ankiety kwalifikacyjnej</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Weryfikacja kryteriów (przychód, budżet)</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Sprawdzenie "Czerwonych Flag"</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Scoping Call (15 min) z decydentem</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Decyzja: GO/NO-GO dla Etapu Audytu</span></li>
+                            </ul>
+                        </div>
+                        <div class="card p-6">
+                            <h3 class="text-lg font-bold mb-3">SOP: Business Intelligence Audit</h3>
+                            <p class="text-xs text-gray-500 mb-4">Cel: Dostarczyć klientowi "efekt WOW" i jasną diagnozę.</p>
+                            <ul class="text-sm space-y-3">
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Zebranie dostępów technicznych i biznesowych</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Przeprowadzenie wywiadów ze stakeholderami</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Analiza MECE (Traffic, Conversion, Profit, Attr)</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Synteza wniosków i przygotowanie raportu</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Prezentacja Checkpoint 1</span></li>
+                            </ul>
+                        </div>
+                        <div class="card p-6">
+                            <h3 class="text-lg font-bold mb-3">SOP: Raport Miesięczny (MBR)</h3>
+                             <p class="text-xs text-gray-500 mb-4">Cel: Pokazać postęp w kontekście celów biznesowych.</p>
+                            <ul class="text-sm space-y-3">
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Zebranie danych z Looker Studio</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Analiza wyników vs cele (KPIs)</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Identyfikacja 3 "wins" i 3 "learnings"</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Przygotowanie rekomendacji na kolejny miesiąc</span></li>
+                                <li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3"><span>Wysłanie raportu i umówienie MBR</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Akademia Section -->
+                <section id="akademia" class="content-section">
+                    <h1 class="text-4xl font-bold mb-2">Akademia AdForge</h1>
+                    <p class="text-lg text-gray-500 mb-8">Ścieżki rozwoju kompetencji "od zera do eksperta" dla każdej roli w zespole.</p>
+
+                    <div id="akademia-container" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Academy paths will be injected by JS -->
+                    </div>
+                </section>
+
+                <!-- Wiedza Section -->
+                <section id="wiedza" class="content-section">
+                    <h1 class="text-4xl font-bold mb-2">Baza Wiedzy</h1>
+                    <p class="text-lg text-gray-500 mb-8">Nasze frameworki i kluczowe koncepcje. To jest sposób myślenia AdForge.</p>
+                    <div id="accordion-container" class="space-y-4">
+                        <!-- Accordion items will be injected by JS -->
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Structure -->
+    <div id="akademia-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 transform scale-95">
+            <div id="modal-header" class="flex justify-between items-center border-b pb-3 mb-4">
+                 <h2 id="modal-title" class="text-2xl font-bold"></h2>
+                 <button id="modal-close" class="text-gray-500 hover:text-gray-800 text-3xl leading-none">&times;</button>
+            </div>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const contentSections = document.querySelectorAll('.content-section');
+
+            function navigateTo(hash) {
+                const targetId = hash.substring(1);
+                
+                navLinks.forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href') === hash);
+                });
+
+                contentSections.forEach(section => {
+                    section.classList.toggle('active', section.id === targetId);
+                });
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetHash = this.getAttribute('href');
+                    navigateTo(targetHash);
+                    window.location.hash = targetHash;
+                });
+            });
+
+            // Initial setup
+            function initializeApp() {
+                const initialHash = window.location.hash || '#dashboard';
+                navigateTo(initialHash);
+    
+                injectPlaybookHTML();
+                buildPlaybook();
+                buildKanbanBoard();
+                buildAccordion();
+                buildAkademia();
+                buildCharts();
+            }
+
+            initializeApp();
+        });
+        
+        function injectPlaybookHTML() {
+             const playbookContainer = document.getElementById('system');
+             if (playbookContainer) {
+                const playbookHTML = `
+                    <h1 class="text-4xl font-bold mb-2">AdForge Performance & Profit System™</h1>
+                    <p class="text-lg text-gray-500 mb-8">Nasz autorski, 5-etapowy system transformacji rentowności e-commerce.</p>
+                    <div class="bg-white p-4 rounded-lg border border-gray-200">
+                        <nav id="playbook-nav" class="flex flex-wrap gap-2 border-b border-gray-200 pb-2 mb-4">
+                            <!-- Playbook nav links -->
+                        </nav>
+                        <div id="playbook-content">
+                            <!-- Playbook content -->
+                        </div>
+                    </div>
+                `;
+                playbookContainer.innerHTML = playbookHTML;
+             }
+        }
+
+        function buildPlaybook() {
+            const playbookNav = document.getElementById('playbook-nav');
+            const playbookContent = document.getElementById('playbook-content');
+
+            if (!playbookNav || !playbookContent) return;
+
+            const playbookData = [
+                { id: 'etap-1', title: 'Etap 1: Audyt' },
+                { id: 'etap-2', title: 'Etap 2: Architektura' },
+                { id: 'etap-3', title: 'Etap 3: Optymalizacja' },
+                { id: 'etap-4', title: 'Etap 4: Zysk' },
+                { id: 'etap-5', title: 'Etap 5: Skalowanie' }
+            ];
+
+            const playbookContentData = {
+                'etap-1': {
+                    title: 'Etap 1: Business Intelligence Audit', subtitle: 'Diagnoza Systemu',
+                    goal: 'Zidentyfikować największe dźwignie wzrostu i "przecieki" w budżecie klienta poprzez brutalnie szczerą, opartą na danych diagnozę czterech kluczowych obszarów jego biznesu. Naszym celem nie jest audyt reklam. Naszym celem jest audyt rentowności.',
+                    diagramNodes: ['Kick-off & Dostęp', 'Analiza Danych', 'MECE Breakdown', 'Synteza i Hipotezy', 'Raport Audytu', 'Checkpoint 1'],
+                    steps: [
+                        { step: '1', action: 'Kick-off & Zbieranie Dostępów', responsible: 'Account Manager', tools: 'ClickUp (checklist), KeePass', question: 'Czy mamy wszystkie dostępy? Czy klient rozumie, czego potrzebujemy?' },
+                        { step: '2', action: 'Analiza Rentowności', responsible: 'Performance Specialist', tools: 'GA, CRM, Google Sheets', question: 'Gdzie jest najwyższa/najniższa marża? Jaki jest LTV:CAC dla kluczowych segmentów?' },
+                        { step: '3', action: 'Analiza Ruchu', responsible: 'Performance Specialist', tools: 'Google/Meta Ads, Ahrefs, GA', question: 'Które kanały przynoszą rentowny ruch? Gdzie przepalamy budżet? Co robi konkurencja?' },
+                        { step: '4', action: 'Analiza Konwersji', responsible: 'CRO Analyst', tools: 'Hotjar, GA, PageSpeed', question: 'Gdzie użytkownicy odpadają z lejka? Jakie elementy na stronie zabijają konwersję?' },
+                        { step: '5', action: 'Analiza Analityki', responsible: 'CRO Analyst', tools: 'GA, Google Tag Manager', question: 'Czy dane są wiarygodne? Czy śledzimy to, co najważniejsze (ZYSK)? Jaki jest model atrybucji?' },
+                        { step: '6', action: 'Synteza i Hipotezy', responsible: 'CEO/Strateg, Zespół', tools: 'Miro/FigJam', question: 'Jakie są 3 największe problemy do rozwiązania? Jaka jest nasza główna hipoteza na szybki wzrost?' },
+                        { step: '7', action: 'Raport i Prezentacja', responsible: 'Account Manager, Zespół', tools: 'Google Slides, Looker Studio', question: 'Deliverable: Raport Audytu Biznesowego, Prezentacja na Checkpoint 1.' },
+                        { step: '8', action: 'Checkpoint 1', responsible: 'CEO/Strateg, Account Manager', tools: 'Google Meet', question: 'Czy klient zgadza się z naszą diagnozą? Czy akceptuje nasze hipotezy? Czy jesteśmy gotowi na Etap 2?' }
+                    ],
+                    deliverable: {
+                        title: "Struktura Deliverable: Raport Audytu Biznesowego",
+                        content: `<ul class="list-disc space-y-1 text-sm"><li><strong>Streszczenie dla Zarządu (1 strona):</strong> Główne wnioski i 3 kluczowe rekomendacje.</li><li><strong>Analiza MECE:</strong> Szczegółowe wyniki dla obszarów Traffic, Conversion, Profitability, Attribution.</li><li><strong>Macierz Szans:</strong> Ocena potencjalnego wpływu i łatwości wdrożenia dla każdej rekomendacji.</li><li><strong>Roadmapa na 90 dni:</strong> Proponowane działania w ramach Etapu 2 i 3.</li></ul>`
+                    },
+                    checklist: [
+                        "Potwierdzenie zebrania wszystkich dostępów (AM)",
+                        "Przeprowadzenie wywiadów ze wszystkimi zdefiniowanymi stakeholderami (PS)",
+                        "Wypełnienie szablonu analizy MECE w Google Sheets (PS, CRO)",
+                        "Stworzenie draftu raportu i prezentacji (AM)",
+                        "Wewnętrzny review raportu (CEO)",
+                        "Wysłanie agendy spotkania do klienta na 24h przed Checkpointem (AM)"
+                    ]
+                },
+                'etap-2': {
+                    title: 'Etap 2: Performance Architecture Design', subtitle: 'Projekt Systemu',
+                    goal: 'Przekształcić wnioski z audytu w konkretny, spójny i mierzalny plan działania. Zaprojektować architekturę kampanii, która odzwierciedla cele biznesowe klienta, a nie tylko "dobre praktyki" Google.',
+                    diagramNodes: ['Wyniki Audytu', 'Warsztat Strategiczny', 'Projekt Struktury', 'Definicja Segmentów', 'Plan Budżetu', 'Framework KPI', 'Dokument Architektury', 'Checkpoint 2'],
+                    steps: [
+                        { step: '1', action: 'Warsztat Strategiczny', responsible: 'CEO/Strateg, Zespół', tools: 'Miro/FigJam', question: 'Jakie są nasze priorytety? Na których produktach/segmentach się skupiamy?' },
+                        { step: '2', action: 'Projekt Struktury Kampanii', responsible: 'Performance Specialist', tools: 'Google Sheets, XMind', question: 'Jak struktura kampanii odzwierciedli rentowność produktów? Jakie kampanie uruchomimy?' },
+                        { step: '3', action: 'Definicja Segmentów', responsible: 'Performance Specialist', tools: 'GA, CRM Klienta', question: 'Jakie są nasze kluczowe persony? Jakie nowe segmenty (remarketing, lookalike) zbudujemy?' },
+                        { step: '4', action: 'Plan Budżetu', responsible: 'CEO/Strateg, Performance Specialist', tools: 'Google Sheets', question: 'Jak podzielimy budżet między kanały? Jakie są prognozowane wyniki?' },
+                        { step: '5', action: 'Framework KPI', responsible: 'Account Manager, Performance Specialist', tools: 'Looker Studio, Google Sheets', question: 'Co będziemy mierzyć? Jak będzie wyglądał nasz dashboard? Jakie KPI są kluczowe dla klienta?' },
+                        { step: '6', action: 'Dokument "Performance Architecture"', responsible: 'Account Manager, Zespół', tools: 'Google Docs', question: 'Deliverable: Dokument "Performance Architecture" z roadmapą na 3 miesiące.' },
+                        { step: '7', action: 'Checkpoint 2', responsible: 'CEO/Strateg, Account Manager', tools: 'Google Meet', question: 'Czy klient rozumie i akceptuje plan? Czy mamy zielone światło na wdrożenie?' }
+                    ],
+                    deliverable: {
+                        title: "Struktura Deliverable: Dokument 'Performance Architecture'",
+                        content: `<ul class="list-disc space-y-1 text-sm"><li><strong>Strategia Kanałów:</strong> Rola i cel dla Google Ads, Meta Ads, etc.</li><li><strong>Struktura Kampanii:</strong> Szczegółowy blueprint dla każdego kanału (np. kampanie brand, non-brand, PMAX, remarketing).</li><li><strong>Framework Targetowania:</strong> Definicja głównych grup docelowych, strategii wykluczeń i lejków.</li><li><strong>Roadmapa Wdrożenia:</strong> Harmonogram uruchamiania poszczególnych kampanii i działań na najbliższe 3 miesiące.</li></ul>`
+                    },
+                    checklist: [
+                        "Zorganizowanie i podsumowanie warsztatu strategicznego (AM)",
+                        "Stworzenie draftu struktury kampanii w XMind (PS)",
+                        "Opracowanie propozycji podziału budżetu (CEO, PS)",
+                        "Przygotowanie dokumentu 'Performance Architecture' wg szablonu (AM)",
+                        "Wewnętrzne zatwierdzenie architektury przed spotkaniem z klientem (CEO)"
+                    ]
+                },
+                'etap-3': {
+                    title: 'Etap 3: Conversion Optimization Framework', subtitle: 'Optymalizacja Silnika',
+                    goal: 'Systematyczne i iteracyjne zwiększanie współczynnika konwersji poprzez testowanie hipotez opartych na danych. Celem nie są "ładniejsze" strony. Celem są strony, które sprzedają więcej.',
+                    diagramNodes: ['Dane & Analiza', 'Identyfikacja Hipotez', 'Priorytetyzacja', 'Projekt & Wdrożenie Testu', 'Monitoring', 'Wynik', 'Wdrożenie na stałe', 'Analiza i nowa hipoteza', 'Checkpoint 3'],
+                    steps: [
+                        { step: '1', action: 'Identyfikacja Hipotez', responsible: 'CRO Analyst', tools: 'Hotjar, GA4, Wyniki Audytu', question: 'Gdzie jest największy potencjał do poprawy? Co najbardziej frustruje użytkowników?' },
+                        { step: '2', action: 'Priorytetyzacja', responsible: 'CRO Analyst, Zespół', tools: 'Google Sheets (szablon PIE/ICE)', question: 'Który test ma największy potencjalny wpływ (Potential), jest najważniejszy (Importance) i najłatwiejszy do wdrożenia (Ease)?' },
+                        { step: '3', action: 'Projekt i Wdrożenie Testu', responsible: 'CRO Analyst', tools: 'Google Optimize/VWO, Figma', question: 'Jak będzie wyglądać wariant B? Czy test jest poprawnie skonfigurowany technicznie?' },
+                        { step: '4', action: 'Monitoring', responsible: 'CRO Analyst', tools: 'Platforma do testów A/B, GA4', question: 'Czy zbieramy wystarczająco dużo danych? Czy wyniki są istotne statystycznie?' },
+                        { step: '5', action: 'Analiza i Wdrożenie', responsible: 'CRO Analyst, Performance Specialist', tools: 'Google Sheets', question: 'Czego nauczyliśmy się z tego testu? Jak wdrażamy zwycięską wersję?' },
+                        { step: '6', action: 'Checkpoint 3', responsible: 'Account Manager, CRO Analyst', tools: 'Google Meet', question: 'Deliverable: Plan Testów A/B na kwartał. Czy klient rozumie proces i akceptuje plan?' }
+                    ],
+                    deliverable: {
+                        title: "Struktura Deliverable: Plan Testów A/B (Roadmapa CRO)",
+                        content: `<ul class="list-disc space-y-1 text-sm"><li><strong>Lista Spriorytetyzowanych Hipotez:</strong> Tabela z hipotezami, ich oceną PIE/ICE i statusem.</li><li><strong>Opis Testu 1:</strong> Szczegółowy opis pierwszego testu (hipoteza, metryki, warianty, czas trwania).</li><li><strong>Harmonogram Testów na Kwartał:</strong> Planowana kolejność i czas trwania kolejnych eksperymentów.</li></ul>`
+                    },
+                    checklist: [
+                        "Analiza nagrań sesji i heatmap z Hotjar (CRO)",
+                        "Stworzenie listy min. 10 hipotez testowych (CRO)",
+                        "Wspólna sesja priorytetyzacji hipotez z zespołem (CRO, PS)",
+                        "Przygotowanie briefu dla dewelopera/grafika (jeśli potrzebne) (CRO)",
+                        "Konfiguracja i QA pierwszego testu A/B (CRO)"
+                    ]
+                },
+                'etap-4': {
+                    title: 'Etap 4: Profit Maximization Protocol', subtitle: 'Maksymalizacja Zysku',
+                    goal: 'Wyjść poza optymalizację kampanii i konwersji. Skupić się na maksymalizacji całkowitego zysku generowanego przez klienta w czasie (LTV).',
+                    diagramNodes: ['Analiza Danych', 'Segmentacja LTV', 'Projekt Strategii Retencji', 'Wdrożenie Działań', 'Analiza Wpływu', 'Checkpoint 4'],
+                    steps: [
+                         { step: '1', action: 'Analiza i Segmentacja LTV', responsible: 'Performance Specialist', tools: 'CRM Klienta, GA4, Google Sheets', question: 'Którzy klienci są najbardziej wartościowi? Co ich charakteryzuje?' },
+                         { step: '2', action: 'Strategia Retencji', responsible: 'CEO/Strateg, Performance Specialist', tools: 'Miro/FigJam', question: 'Jak możemy zwiększyć częstotliwość zakupów? Jak możemy zwiększyć średnią wartość zamówienia?' },
+                         { step: '3', action: 'Wdrożenie Działań', responsible: 'Performance Specialist, Zewnętrzny Partner (Email)', tools: 'Klaviyo/Mailchimp, Google Ads', question: 'Czy automatyzacje email działają poprawnie? Czy segmenty remarketingowe są dobrze zdefiniowane?' },
+                         { step: '4', action: 'Analiza Wpływu', responsible: 'Performance Specialist', tools: 'Looker Studio, GA4', question: 'Czy LTV rośnie? Czy marża na powracających klientach jest wyższa?' },
+                         { step: '5', action: 'Checkpoint 4', responsible: 'CEO/Strateg, Account Manager', tools: 'Google Meet', question: 'Deliverable: Raport z wdrożonych działań LTV. Czy klient widzi wartość w tych działaniach?' }
+                    ],
+                    deliverable: {
+                        title: "Struktura Deliverable: Raport Działań Rentownościowych",
+                        content: `<ul class="list-disc space-y-1 text-sm"><li><strong>Analiza Kohortowa LTV:</strong> Porównanie wartości klientów w czasie.</li><li><strong>Wyniki Wdrożonych Działań:</strong> Efektywność automatyzacji email, programów lojalnościowych etc.</li><li><strong>Rekomendacje:</strong> Dalsze kroki w celu maksymalizacji LTV i marży.</li></ul>`
+                    },
+                    checklist: [
+                        "Ekstrakcja i analiza danych o kohortach klientów (PS)",
+                        "Zaprojektowanie min. 2 automatyzacji email marketingowych (PS)",
+                        "Stworzenie dedykowanych list remarketingowych dla segmentów LTV (PS)",
+                        "Analiza wpływu wdrożonych działań po 30 dniach (PS)",
+                        "Przygotowanie prezentacji na Checkpoint 4 (AM)"
+                    ]
+                },
+                'etap-5': {
+                    title: 'Etap 5: Systematic Scale & Monitor', subtitle: 'Skalowanie Systemu',
+                    goal: 'Przejść od optymalizacji do inteligentnego, rentownego wzrostu. Skalować to, co działa, i systematycznie raportować postępy w kontekście celów biznesowych.',
+                    diagramNodes: ['Monitoring KPI', 'Alerty & Anomalie', 'Identyfikacja Okazji', 'Skalowanie', 'QBR', 'Aktualizacja Strategii'],
+                    steps: [
+                        { step: '1', action: 'Ciągły Monitoring', responsible: 'Performance Specialist, Account Manager', tools: 'Looker Studio, Slack (alerty)', question: 'Czy kluczowe KPI są w normie? Czy pojawiły się jakieś niepokojące trendy?' },
+                        { step: '2', action: 'Protokoły Skalowania', responsible: 'Performance Specialist', tools: 'Google Ads, Meta Ads', question: 'Które kampanie/produkty kwalifikują się do zwiększenia budżetu? O ile i jak szybko zwiększamy wydatki?' },
+                        { step: '3', action: 'Przygotowanie QBR', responsible: 'Account Manager, Zespół', tools: 'Looker Studio, Google Slides', question: 'Jakie były nasze największe sukcesy i porażki w kwartale? Jakie wnioski na przyszłość?' },
+                        { step: '4', action: 'Checkpoint 5 (QBR)', responsible: 'CEO/Strateg, Account Manager, Klient', tools: 'Google Meet', question: 'Deliverable: Raport QBR, Plan na kolejny kwartał. Czy jesteśmy zgodni co do priorytetów?' },
+                        { step: '5', action: 'Aktualizacja Strategii', responsible: 'CEO/Strateg, Zespół', tools: 'Dokument "Performance Architecture"', question: 'Jakie zmiany wprowadzamy do naszej architektury na podstawie wyników z ostatniego kwartału?' }
+                    ],
+                    deliverable: {
+                        title: "Struktura Deliverable: Raport Kwartalny (QBR)",
+                        content: `<ul class="list-disc space-y-1 text-sm"><li><strong>Podsumowanie Wyników Kwartału:</strong> Porównanie z celami i poprzednim kwartałem.</li><li><strong>Analiza Strategic Initiatives:</strong> Co zadziałało, a co nie? Czego się nauczyliśmy?</li><li><strong>Plan Strategiczny na Kolejny Kwartał:</strong> Główne cele, priorytety i alokacja budżetu.</li></ul>`
+                    },
+                    checklist: [
+                        "Ciągłe monitorowanie dashboardu i alertów (PS, AM)",
+                        "Stosowanie protokołu skalowania dla kampanii oznaczonych jako 'zwycięzcy' (PS)",
+                        "Zebranie danych i przygotowanie draftu QBR na tydzień przed końcem kwartału (AM)",
+                        "Wewnętrzne spotkanie w celu omówienia QBR i planu na kolejny kwartał (Cały Zespół)",
+                        "Wysłanie raportu i agendy do klienta na 48h przed QBR (AM)"
+                    ]
+                }
+            };
+
+            playbookData.forEach((stage, index) => {
+                const button = document.createElement('button');
+                button.textContent = stage.title;
+                button.className = `playbook-nav-btn px-4 py-2 text-sm font-semibold rounded-md transition-colors ${index === 0 ? 'bg-amber-100 text-amber-800' : 'text-gray-600 hover:bg-gray-100'}`;
+                button.dataset.target = stage.id;
+                playbookNav.appendChild(button);
+            });
+
+            function renderPlaybookStage(stageId) {
+                const stage = playbookContentData[stageId];
+                if (!stage) return;
+                
+                let diagramHTML = '<div class="flex items-center w-full mb-8 flex-wrap">';
+                stage.diagramNodes.forEach((node, i) => {
+                    diagramHTML += `<div data-step="${i+1}" class="diagram-node text-center p-2 rounded-md bg-gray-50 border border-gray-200 shadow-sm flex-shrink-0 min-w-[120px]"><span class="text-xs font-semibold">${node}</span></div>`;
+                    if (i < stage.diagramNodes.length - 1) {
+                        diagramHTML += '<div class="diagram-connector mx-2"></div>';
+                    }
+                });
+                diagramHTML += '</div>';
+
+                let tableHTML = `
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-12">Krok</th>
+                                    <th class="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Działanie</th>
+                                    <th class="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Odpowiedzialny</th>
+                                    <th class="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Narzędzia</th>
+                                    <th class="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kluczowe Pytania</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                `;
+                stage.steps.forEach(step => {
+                    tableHTML += `<tr class="table-row" data-step="${step.step}"><td class="py-4 px-4 font-bold text-gray-500 text-center">${step.step}</td><td class="py-4 px-4 font-semibold text-gray-800">${step.action}</td><td class="py-4 px-4 text-sm text-gray-600">${step.responsible}</td><td class="py-4 px-4 text-sm text-gray-600">${step.tools}</td><td class="py-4 px-4 text-sm text-gray-600 italic">"${step.question}"</td></tr>`;
+                });
+                tableHTML += `</tbody></table></div>`;
+
+                let deliverableHTML = `
+                    <div class="mt-8 card p-6 bg-gray-50">
+                        <h4 class="font-bold text-gray-800 mb-2">${stage.deliverable.title}</h4>
+                        <div class="text-gray-600">${stage.deliverable.content}</div>
+                    </div>
+                `;
+
+                let checklistHTML = `<div class="mt-8 card p-6"><h4 class="font-bold text-gray-800 mb-3">Operacyjna Checklista Etapu</h4><ul class="space-y-2">`;
+                stage.checklist.forEach(item => {
+                    checklistHTML += `<li class="checklist-item flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mr-3 flex-shrink-0"><span>${item}</span></li>`;
+                });
+                checklistHTML += `</ul></div>`;
+
+
+                playbookContent.innerHTML = `
+                    <div class="fade-in">
+                        <h2 class="text-3xl font-bold text-gray-900">${stage.title}</h2>
+                        <p class="text-lg text-gray-500 mb-6">${stage.subtitle}</p>
+                        <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg mb-10"><p class="font-semibold text-amber-800">Cel Etapu:</p><p class="text-amber-700">${stage.goal}</p></div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Diagram Procesu</h3>
+                        ${diagramHTML}
+                        <h3 class="text-xl font-bold text-gray-800 mt-12 mb-4">Proces Krok po Kroku</h3>
+                        ${tableHTML}
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            ${deliverableHTML}
+                            ${checklistHTML}
+                        </div>
+                    </div>
+                `;
+                setupPlaybookInteractions();
+            }
+
+            playbookNav.addEventListener('click', (e) => {
+                if(e.target.classList.contains('playbook-nav-btn')) {
+                    playbookNav.querySelectorAll('.playbook-nav-btn').forEach(btn => {
+                        btn.classList.remove('bg-amber-100', 'text-amber-800');
+                        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+                    });
+                    e.target.classList.add('bg-amber-100', 'text-amber-800');
+                    e.target.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                    renderPlaybookStage(e.target.dataset.target);
+                }
+            });
+
+            renderPlaybookStage('etap-1');
+        }
+
+        function setupPlaybookInteractions() {
+            const stageElement = document.getElementById('playbook-content');
+            if (!stageElement) return;
+
+            const diagramNodes = stageElement.querySelectorAll('.diagram-node');
+            const tableRows = stageElement.querySelectorAll('.table-row');
+
+            const highlightElements = (step, add) => {
+                const method = add ? 'add' : 'remove';
+                stageElement.querySelectorAll(`[data-step="${step}"]`).forEach(el => el.classList[method]('highlighted'));
+            };
+            
+            diagramNodes.forEach(node => {
+                const step = node.dataset.step;
+                node.addEventListener('mouseover', () => highlightElements(step, true));
+                node.addEventListener('mouseout', () => highlightElements(step, false));
+            });
+
+            tableRows.forEach(row => {
+                const step = row.dataset.step;
+                row.addEventListener('mouseover', () => highlightElements(step, true));
+                row.addEventListener('mouseout', () => highlightElements(step, false));
+            });
+        }
+
+        function buildKanbanBoard() {
+            const kanbanContainer = document.getElementById('kanban-board');
+            if (!kanbanContainer) return;
+            const stages = [
+                { title: 'Etap 1: Audyt', clients: ['Klient A', 'Klient B'] },
+                { title: 'Etap 2: Architektura', clients: ['Klient C'] },
+                { title: 'Etap 3: Optymalizacja', clients: ['Klient D', 'Klient E', 'Klient F'] },
+                { title: 'Etap 4: Zysk', clients: ['Klient G'] },
+                { title: 'Etap 5: Skalowanie', clients: ['Klient H', 'Klient I'] }
+            ];
+            let kanbanHTML = '';
+            stages.forEach(stage => {
+                kanbanHTML += `<div class="bg-gray-100 rounded-lg p-4 kanban-column"><h3 class="font-bold mb-4">${stage.title}</h3><div class="space-y-3">`;
+                stage.clients.forEach(client => {
+                    kanbanHTML += `<div class="card p-3 kanban-card">${client}</div>`;
+                });
+                kanbanHTML += `</div></div>`;
+            });
+            kanbanContainer.innerHTML = kanbanHTML;
+        }
+        
+        function buildAccordion() {
+            const accordionContainer = document.getElementById('accordion-container');
+            if (!accordionContainer) return;
+
+            const accordionData = [
+                { 
+                    title: 'Framework 1: MECE Problem Breakdown', 
+                    content: `
+                        <div class="framework-content">
+                            <h4>Kiedy stosować?</h4>
+                            <p>Na samym początku współpracy (Etap 1: Audyt) oraz przy każdej nowej, dużej inicjatywie lub problemie. To nasz podstawowy sposób na strukturyzację myślenia i zapewnienie, że o niczym nie zapomnieliśmy.</p>
+                            <h4>Jak to wygląda w praktyce?</h4>
+                            <p>Każdy problem dzielimy na 4 niezależne, ale kompletne kategorie. To zmusza nas do holistycznego spojrzenia na biznes klienta, a nie tylko na kampanie reklamowe.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <div class="border-l-2 border-red-500 pl-3">
+                                    <h5>A. TRAFFIC ISSUES (Problemy z ruchem)</h5>
+                                    <ul>
+                                        <li>Volume: Za mało ruchu na stronę</li>
+                                        <li>Quality: Ruch niskiej jakości (nie konwertuje)</li>
+                                        <li>Sources: Źródła ruchu nieoptymalne</li>
+                                        <li>Targeting: Błędne targetowanie audiences</li>
+                                    </ul>
+                                </div>
+                                <div class="border-l-2 border-blue-500 pl-3">
+                                    <h5>B. CONVERSION ISSUES (Problemy z konwersją)</h5>
+                                    <ul>
+                                        <li>Landing Page: Strona nie konwertuje</li>
+                                        <li>User Experience: Problemy z UX/UI</li>
+                                        <li>Offer: Oferta nieatrakcyjna</li>
+                                        <li>Trust Signals: Brak budowy zaufania</li>
+                                    </ul>
+                                </div>
+                                <div class="border-l-2 border-green-500 pl-3">
+                                    <h5>C. PROFITABILITY ISSUES (Problemy z rentownością)</h5>
+                                    <ul>
+                                        <li>Unit Economics: Marże za niskie</li>
+                                        <li>Lifetime Value: LTV niższy niż CAC</li>
+                                        <li>Cost Structure: Koszty za wysokie</li>
+                                        <li>Pricing Strategy: Błędna strategia cenowa</li>
+                                    </ul>
+                                </div>
+                                <div class="border-l-2 border-yellow-500 pl-3">
+                                    <h5>D. ATTRIBUTION ISSUES (Problemy z pomiarem)</h5>
+                                    <ul>
+                                        <li>Tracking Setup: Błędne trackowanie</li>
+                                        <li>Attribution Model: Niewłaściwy model atrybucji</li>
+                                        <li>Data Analysis: Błędna interpretacja danych</li>
+                                        <li>Reporting: Metryki nie pokazują prawdy</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    ` 
+                },
+                { 
+                    title: 'Framework 2: Issue Trees', 
+                    content: `
+                        <div class="framework-content">
+                            <h4>Kiedy stosować?</h4>
+                            <p>Gdy mamy zdefiniowany główny problem lub cel (np. po analizie MECE) i chcemy rozbić go na konkretne hipotezy i działania. Używamy go w Etapie 2 (Projekt Architektury) i przy planowaniu kwartalnym.</p>
+                            <h4>Jak to wygląda w praktyce?</h4>
+                            <p>Tworzymy logiczne drzewo, które od ogólnego celu schodzi do bardzo konkretnych zadań do wykonania. To zapewnia, że nasze działania są bezpośrednio powiązane z celem strategicznym.</p>
+                            <pre><code>GŁÓWNE PYTANIE: "Jak zwiększyć zysk z performance marketingu o 100%?"
+└── LEVEL 1: ZWIĘKSZYĆ PRZYCHODY
+    ├── LEVEL 2: Więcej konwersji
+    │   ├── LEVEL 3: Lepsze Landing Pages
+    │   └── LEVEL 3: Lepsze targetowanie
+    └── LEVEL 2: Wyższy Average Order Value
+        └── LEVEL 3: Cross-sell/Up-sell
+└── LEVEL 1: ZMNIEJSZYĆ KOSZTY
+    ├── LEVEL 2: Niższy Cost Per Click
+    │   └── LEVEL 3: Bid optimization
+    └── LEVEL 2: Lepsza konwersja kampanii
+        └── LEVEL 3: Waste elimination</code></pre>
+                        </div>
+                    `
+                },
+                {
+                    title: 'Framework 3: AdForge Performance Profit System™',
+                    content: `
+                        <div class="framework-content">
+                            <h4>Kiedy stosować?</h4>
+                            <p>To jest nasz nadrzędny system operacyjny, który strukturyzuje CAŁĄ współpracę z klientem, od pierwszego kontaktu do ciągłego skalowania. Każdy klient przechodzi przez te 5 etapów.</p>
+                            <h4>Jak to wygląda w praktyce?</h4>
+                            <p>To sekwencyjny proces, w którym każdy kolejny etap bazuje na wynikach poprzedniego. Zapewnia to spójność, przewidywalność i koncentrację na celu końcowym, jakim jest ZYSK klienta. Szczegółowy opis znajdziesz w sekcji "System (Playbook)".</p>
+                            <ol class="list-decimal space-y-2 mt-4">
+                                <li><strong>ETAP 1: BUSINESS INTELLIGENCE AUDIT</strong> (Diagnoza)</li>
+                                <li><strong>ETAP 2: PERFORMANCE ARCHITECTURE DESIGN</strong> (Strategia)</li>
+                                <li><strong>ETAP 3: CONVERSION OPTIMIZATION FRAMEWORK</strong> (Egzekucja)</li>
+                                <li><strong>ETAP 4: PROFIT MAXIMIZATION PROTOCOL</strong> (Dźwignia)</li>
+                                <li><strong>ETAP 5: SCALE & MONITOR SYSTEM</strong> (Wzrost)</li>
+                            </ol>
+                        </div>
+                    `
+                },
+                { 
+                    title: 'Framework 4: Hypothesis-Driven Testing', 
+                    content: `
+                        <div class="framework-content">
+                            <h4>Kiedy stosować?</h4>
+                            <p>Zawsze, gdy planujemy jakiekolwiek działanie optymalizacyjne – od zmiany nagłówka na stronie, po testowanie nowej grupy docelowej. To fundament naszej pracy w Etapie 3 (Optymalizacja).</p>
+                            <h4>Jak to wygląda w praktyce?</h4>
+                            <p>Zamiast działać "na czuja", każdą zmianę traktujemy jak eksperyment naukowy. Formułujemy hipotezę, określamy, jak zmierzymy sukces i dopiero wtedy działamy. To eliminuje subiektywizm i pozwala uczyć się z każdego działania.</p>
+                            <pre><code>HIPOTEZA: [Konkretne założenie o przyczynie problemu]
+RATIONALE: [Dlaczego tak myślimy - dane/obserwacje]
+TEST: [Jak to sprawdzimy - metodologia]
+SUKCES METRIC: [Jak zmierzymy sukces - liczby]
+TIMEFRAME: [Ile czasu na test]
+RESOURCE ALLOCATION: [Ile budżetu/czasu potrzeba]</code></pre>
+                            <h4 class="mt-6">Przykład:</h4>
+                            <pre><code>HIPOTEZA: Dodanie testimoniali na LP zwiększy konwersję o 25%
+RATIONALE: Brak trust signals w checkout flow, wysoki bounce rate
+TEST: A/B test - wersja A bez testimoniali vs B z 3 testimonialami
+SUKCES METRIC: Wzrost konwersji >15% przy stat. significance 95%
+TIMEFRAME: 14 dni testowania
+RESOURCE ALLOCATION: 2h setup, 50% traffic na każdą wersję</code></pre>
+                        </div>
+                    ` 
+                },
+                { 
+                    title: 'Framework 5: Analiza 80/20 (Zasada Pareto)', 
+                    content: `
+                        <div class="framework-content">
+                            <h4>Kiedy stosować?</h4>
+                            <p>Regularnie, co najmniej raz w miesiącu, podczas analizy wyników kampanii i rentowności produktów. To narzędzie do bezlitosnej priorytetyzacji.</p>
+                            <h4>Jak to wygląda w praktyce?</h4>
+                            <p>Identyfikujemy te 20% elementów (kampanii, produktów, słów kluczowych), które generują 80% wyników (zysku) oraz te 20%, które generują 80% problemów (kosztów). Następnie działamy według prostego schematu.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <h5>SILNIKI PRZYCHODÓW:</h5>
+                                    <ul class="list-disc">
+                                        <li>20% kampanii generuje 80% przychodu → Skupienie na najlepszych</li>
+                                        <li>20% słów kluczowych generuje 80% konwersji → Optymalizacja słów kluczowych</li>
+                                        <li>20% grup docelowych generuje 80% zyskownego ruchu → Ekspansja grup docelowych</li>
+                                        <li>20% produktów generuje 80% marży → Optymalizacja miksu produktowego</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h5>GENERATORY KOSZTÓW:</h5>
+                                    <ul class="list-disc">
+                                        <li>20% kampanii zużywa 80% budżetu → Realokacja budżetu</li>
+                                        <li>20% słów kluczowych generuje 80% kosztów → Strategia wykluczeń</li>
+                                        <li>20% umiejscowień generuje 80% strat → Optymalizacja umiejscowień</li>
+                                        <li>20% okresów czasowych generuje 80% nieefektywności → Optymalizacja harmonogramu</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <h4 class="mt-6">Schemat Działania:</h4>
+                            <ul class="list-decimal">
+                                <li><strong>ELIMINUJ:</strong> Dolne 50% wyników (eliminacja strat)</li>
+                                <li><strong>OPTYMALIZUJ:</strong> Środkowe 30% wyników (potencjał do poprawy)</li>
+                                <li><strong>SKALUJ:</strong> Górne 20% wyników (koncentracja na wzroście)</li>
+                            </ul>
+                        </div>
+                    ` 
+                },
+                 { 
+                    title: 'Framework 6: McKinsey 7S dla AdForge', 
+                    content: `
+                        <div class="framework-content">
+                            <h4>Kiedy stosować?</h4>
+                            <p>To jest nasz **wewnętrzny framework strategiczny**. Używamy go raz na pół roku do audytu samej agencji AdForge, aby upewnić się, że nasza własna organizacja jest spójna, efektywna i gotowa do realizacji obietnic składanych klientom. **To narzędzie dla nas, nie dla klienta.**</p>
+                            <h4>Jak to wygląda w praktyce?</h4>
+                            <p>Analizujemy 7 kluczowych obszarów naszej firmy, aby zidentyfikować niespójności. Na przykład, jeśli nasza strategia (Strategy) mówi o byciu premium, ale nasze systemy (Systems) są chaotyczne, a umiejętności zespołu (Skills) nieadekwatne, to mamy problem do rozwiązania.</p>
+                            <ul class="list-disc space-y-2">
+                                <li><strong>STRATEGY (Strategia):</strong> Czy nasze pozycjonowanie premium jest spójne z naszymi działaniami?</li>
+                                <li><strong>STRUCTURE (Struktura):</strong> Czy obecna struktura zespołu wspiera efektywną obsługę klienta?</li>
+                                <li><strong>SYSTEMS (Systemy):</strong> Czy nasze SOPs, narzędzia i procesy są wystarczająco dobre?</li>
+                                <li><strong>SHARED VALUES (Wspólne Wartości):</strong> Czy wszyscy w zespole żyją naszą mantrą "zysk ponad metryki próżności"?</li>
+                                <li><strong>STYLE (Styl Przywództwa):</strong> Czy styl zarządzania wspiera kulturę odpowiedzialności i proaktywności?</li>
+                                <li><strong>STAFF (Pracownicy):</strong> Czy mamy odpowiednich ludzi na pokładzie?</li>
+                                <li><strong>SKILLS (Umiejętności):</strong> Jakie kompetencje musimy rozwinąć, aby być o krok przed rynkiem?</li>
+                            </ul>
+                        </div>
+                    `
+                }
+            ];
+
+            let accordionHTML = '';
+            accordionData.forEach(item => {
+                accordionHTML += `
+                    <div class="card">
+                        <button class="accordion-button w-full flex justify-between items-center p-4 text-left">
+                            <span class="font-semibold">${item.title}</span>
+                            <span class="accordion-arrow transform transition-transform duration-200">▶</span>
+                        </button>
+                        <div class="accordion-content px-4 pb-4">
+                            ${item.content}
+                        </div>
+                    </div>
+                `;
+            });
+            accordionContainer.innerHTML = accordionHTML;
+
+            accordionContainer.addEventListener('click', (e) => {
+                const button = e.target.closest('.accordion-button');
+                if (button) {
+                    const content = button.nextElementSibling;
+                    button.classList.toggle('open');
+                    if (content.style.maxHeight) {
+                        content.style.maxHeight = null;
+                    } else {
+                        content.style.maxHeight = content.scrollHeight + "px";
+                    }
+                }
+            });
+        }
+        
+        function buildAkademia() {
+            const container = document.getElementById('akademia-container');
+            if (!container) return;
+
+            const roles = [
+                {
+                    role: 'Performance Specialist',
+                    description: 'Od egzekucji do strategii kampanii.',
+                    levels: [
+                        { level: 1, title: 'Foundation (40h)', goal: 'Zrozumienie frameworków AdForge i samodzielna obsługa podstawowych narzędzi.', competencies: 'Analiza MECE, Google Ads Editor, podstawy GA4.', task: 'Przeprowadź audyt słów kluczowych dla klienta X wg. checklisty SOP.', progress: 100 },
+                        { level: 2, title: 'Implementation (80h)', goal: 'Samodzielne prowadzenie kampanii i optymalizacja wg Systemu AdForge.', competencies: 'Budowa architektury kampanii, testy A/B reklam, analiza kohortowa.', task: 'Zaprojektuj i uruchom nową architekturę kampanii dla klienta Y.', progress: 45 },
+                        { level: 3, title: 'Strategy (120h)', goal: 'Projektowanie strategii performance i pełna odpowiedzialność za wyniki klienta.', competencies: 'Alokacja budżetu, prognozowanie, strategia skalowania, doradztwo biznesowe.', task: 'Przygotuj pełną strategię na Q4 dla klienta Z, włączając QBR.', progress: 0 }
+                    ]
+                },
+                {
+                    role: 'CRO Analyst',
+                    description: 'Od audytu UX do mistrzostwa w testach A/B.',
+                    levels: [
+                        { level: 1, title: 'Foundation (40h)', goal: 'Zrozumienie podstawowych narzędzi i heurystyk konwersji.', competencies: 'Obsługa Hotjar, analiza ścieżek w GA4, audyt heurystyczny.', task: 'Przygotuj audyt UX dla strony głównej klienta X.', progress: 100 },
+                        { level: 2, title: 'Implementation (80h)', goal: 'Samodzielne planowanie, wdrażanie i analiza testów A/B.', competencies: 'Model PIE/ICE, konfiguracja testów, analiza statystyczna.', task: 'Zaprojektuj i przeanalizuj test A/B dla strony produktu klienta Y.', progress: 20 },
+                        { level: 3, title: 'Strategy (120h)', goal: 'Tworzenie długoterminowych strategii optymalizacji konwersji.', competencies: 'Psychologia konwersji, mapowanie podróży klienta, budowa roadmapy CRO.', task: 'Opracuj roczną roadmapę CRO dla klienta Z.', progress: 0 }
+                    ]
+                },
+                {
+                    role: 'Account Manager',
+                    description: 'Od koordynacji do strategicznego partnerstwa.',
+                    levels: [
+                        { level: 1, title: 'Foundation (40h)', goal: 'Pełne zrozumienie Systemu AdForge i narzędzi do zarządzania projektami.', competencies: 'ClickUp, komunikacja z klientem, podstawy raportowania.', task: 'Przygotuj i poprowadź wewnętrzny kick-off dla nowego klienta.', progress: 100 },
+                        { level: 2, title: 'Implementation (80h)', goal: 'Samodzielne prowadzenie komunikacji i zarządzanie projektem klienta.', competencies: 'Prowadzenie MBR, zarządzanie harmonogramem, podstawowa analiza danych.', task: 'Samodzielnie przygotuj i poprowadź MBR dla klienta Y.', progress: 65 },
+                        { level: 3, title: 'Strategy (120h)', goal: 'Bycie strategicznym partnerem dla klienta, identyfikacja nowych możliwości.', competencies: 'Doradztwo biznesowe, identyfikacja upsell, budowanie relacji na poziomie C-level.', task: 'Przygotuj i zaprezentuj propozycję rozszerzenia współpracy dla klienta Z.', progress: 0 }
+                    ]
+                }
+            ];
+            
+            let html = '';
+            roles.forEach(role => {
+                html += `<div class="card p-6 flex flex-col">
+                            <h3 class="text-xl font-bold mb-1">${role.role}</h3>
+                            <p class="text-sm text-gray-500 mb-4">${role.description}</p>
+                            <div class="space-y-3 flex-grow">`;
+                role.levels.forEach(level => {
+                    html += `<div class="border-l-4 ${level.progress > 0 ? 'border-amber-500' : 'border-gray-200'} pl-4 py-1 cursor-pointer hover:bg-gray-50 rounded-r-md" data-role="${role.role}" data-level="${level.level}">
+                                <h4 class="font-semibold">${level.title}</h4>
+                                <div class="w-full progress-bar-bg rounded-full h-1.5 mt-1">
+                                    <div class="progress-bar h-1.5 rounded-full" style="width: ${level.progress}%"></div>
+                                </div>
+                             </div>`;
+                });
+                html += `</div></div>`;
+            });
+            container.innerHTML = html;
+
+            // Modal Logic
+            const modal = document.getElementById('akademia-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const modalClose = document.getElementById('modal-close');
+
+            container.addEventListener('click', e => {
+                const levelCard = e.target.closest('[data-level]');
+                if (levelCard) {
+                    const roleName = levelCard.dataset.role;
+                    const levelNum = parseInt(levelCard.dataset.level);
+                    const roleData = roles.find(r => r.role === roleName);
+                    const levelData = roleData.levels.find(l => l.level === levelNum);
+
+                    modalTitle.textContent = `${roleName} - ${levelData.title}`;
+                    modalBody.innerHTML = `
+                        <div class="space-y-4 text-gray-700">
+                            <div><strong class="font-semibold text-gray-900">Cel Poziomu:</strong> ${levelData.goal}</div>
+                            <div><strong class="font-semibold text-gray-900">Kluczowe Kompetencje:</strong>
+                                <ul class="list-disc list-inside mt-1">
+                                    ${levelData.competencies.split(', ').map(c => `<li>${c}</li>`).join('')}
+                                </ul>
+                            </div>
+                            <div><strong class="font-semibold text-gray-900">Materiały Szkoleniowe:</strong>
+                                <ul class="list-disc list-inside mt-1">
+                                    <li><a href="#wiedza" class="text-blue-600 hover:underline">Frameworki z Bazy Wiedzy</a></li>
+                                    <li><a href="#system" class="text-blue-600 hover:underline">Analiza Playbooka Operacyjnego</a></li>
+                                </ul>
+                            </div>
+                            <div class="bg-amber-50 p-4 rounded-lg"><strong class="font-semibold text-amber-800">Zadanie Certyfikacyjne:</strong> ${levelData.task}</div>
+                        </div>
+                    `;
+                    modal.classList.remove('hidden');
+                }
+            });
+
+            modalClose.addEventListener('click', () => modal.classList.add('hidden'));
+            modal.addEventListener('click', e => {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
+                }
+            });
+        }
+
+        function buildCharts() {
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                scales: { 
+                    y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                    x: { ticks: { font: { size: 10 } } }
+                }
+            };
+
+            const mrrCanvas = document.getElementById('mrrChart');
+            if (mrrCanvas) {
+                new Chart(mrrCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze'],
+                        datasets: [{
+                            label: 'MRR',
+                            data: [95, 105, 110, 125, 134, 150].map(x => x*1000),
+                            backgroundColor: 'rgba(161, 98, 7, 0.6)',
+                            borderColor: 'rgba(161, 98, 7, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+
+            const retentionCanvas = document.getElementById('retentionChart');
+            if (retentionCanvas) {
+                new Chart(retentionCanvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Utrzymani', 'Utraceni'],
+                        datasets: [{
+                            data: [92, 8],
+                            backgroundColor: ['#16a34a', '#e4e4e7'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { ...chartOptions, cutout: '70%' }
+                });
+            }
+            
+            const funnelCanvas = document.getElementById('funnelChart');
+            if (funnelCanvas) {
+                new Chart(funnelCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Leady', 'Audyty', 'Klienci'],
+                        datasets: [{
+                            label: 'Lejek',
+                            data: [22, 11, 5],
+                            backgroundColor: ['#60a5fa', '#3b82f6', '#1d4ed8'],
+                        }]
+                    },
+                    options: { ...chartOptions, indexAxis: 'y' }
+                });
+            }
+        }
+
+    </script>
+</body>
+</html>
